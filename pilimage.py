@@ -13,4 +13,6 @@ def preview(name,effect):
     cv2.imwrite(f'{name}.jpeg', effect)
     img = Image.open(f'{name}.jpeg')
     return img
+
+
 print(text)

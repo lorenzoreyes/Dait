@@ -42,7 +42,11 @@ for i in range(len(photos)):
         image = cv2.imread(photos[i], cv2.IMREAD_UNCHANGED)
         width, height = image.shape[1],image.shape[0]
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        image = cv2.bitwise_not(gray)
+        # Create a CLAHE object (Arguments can be adjusted for better results)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        # Apply CLAHE to the image
+        image = clahe.apply(gray)
+        image = cv2.bitwise_not(image)
         #kernel = np.ones((5,5),np.uint8)
         #image = cv2.dilate(image, kernel, iterations=1)
         image = cv2.bitwise_not(image)
@@ -57,7 +61,7 @@ for i in range(len(photos)):
         angle = 0 if orientation == rotate else angle
         rotated = imutils.rotate_bound(rotated , angle)
         #gray = cv2.adaptiveThreshold(rotated, 165, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,71,12)  
-        image = cv2.resize(rotated,(width*2,height*2), interpolation=cv2.INTER_LINEAR_EXACT)
+        #image = cv2.resize(rotated,(width*2,height*2), interpolation=cv2.INTER_LINEAR_EXACT)
         cv2.imwrite(f'{photos[i][:-4]}WB{angle}.png',image)
         print(photos[i], orientation, rotate, confidence)
     except:

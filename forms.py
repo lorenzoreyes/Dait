@@ -1,6 +1,7 @@
 import cv2 
 import numpy as np 
 from time import sleep
+from scipy import ndimage 
 
 def straighten_document(image,width, height):    
     # Apply Gaussian blur to reduce noise
@@ -53,39 +54,61 @@ def straighten_document(image,width, height):
     
 def straighten_image(image):
     # Split the image into its channels
-    #b, g, r, alpha = cv2.split(image)
-    # Width & Height of the original image
-    width, height = image.shape[1],image.shape[0]  
+    b, g, r, alpha = cv2.split(image)
+    width, height = image.shape[1],image.shape[0]
     # Threshold the alpha channel to find the non-transparent region
-    #_, mask = cv2.threshold(alpha, 240, 255, cv2.THRESH_BINARY)
-    # Convert the image to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-     # Apply Canny edge detection or any other edge detection method
-    edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+    _, mask = cv2.threshold(alpha, 240, 255, cv2.THRESH_BINARY)
     # Find contours in the mask
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Create a black background for drawing contours
+    #contour_image = np.zeros_like(image)
+    # Draw contours around the object
+    #cv2.drawContours(contour_image, contours, -1, (0, 255, 0), 4)
+    # Convert BGR image to RGB for displaying with matplotlib
+    #contour_image_rgb = cv2.cvtColor(contour_image, cv2.COLOR_BGR2RGB)
+
     # Get the largest contour assuming it represents the document boundary
     largest_contour = max(contours, key=cv2.contourArea)
     # Get the approximate polygon of the contour
     perimeter = cv2.arcLength(largest_contour, True)
     approx_polygon = cv2.approxPolyDP(largest_contour, 0.02 * perimeter, True)
-    
+
     # Rearrange the corners of the approximated polygon
     pts = np.float32([approx_polygon[0], approx_polygon[1], approx_polygon[2], approx_polygon[3]])
-    
-    # Calculate the bounding rectangle around the polygon
-    x, y, w, h = cv2.boundingRect(approx_polygon)
 
-    # Define the corresponding corners in the output image maintaining the original size
-    dst_pts = np.float32([[x, y], [x + w - 1, y], [x + w - 1, y + h - 1], [x, y + h - 1]])
 
-     # Calculate the perspective transformation matrix
+    # Define the corresponding corners in the output image
+    dst_pts = np.float32([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]])
+
+    # Calculate the perspective transformation matrix
     perspective_matrix = cv2.getPerspectiveTransform(pts, dst_pts)
 
     # Apply the perspective transformation to get the straightened image
-    straightened_image = cv2.warpPerspective(image, perspective_matrix, (image.shape[1], image.shape[0]))
-    return straightened_image 
+    straightened_image = cv2.warpPerspective(image, perspective_matrix, (width, height))
+    return straightened_image
     
+
+def ocr(gray):
+    # Apply edge detection (Canny edge detection)
+    edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+
+    # Perform line detection using Hough Transform
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 100, minLineLength=100, maxLineGap=10)
+
+    # Calculate the angle of the detected lines
+    angles = []
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        angle = np.arctan2(y2 - y1, x2 - x1) * 180.0 / np.pi
+        angles.append(angle)
+
+    # Calculate the median angle
+    median_angle = np.median(angles)
+
+    print(f"Detected angle: {median_angle} degrees")
+    rotated = ndimage.rotate(gray, median_angle-(2*median_angle),reshape=True)
+    return rotated 
+
 '''
 for i in range(len(photos)):
     image = cv2.imread(photos[i], cv2.IMREAD_UNCHANGED)
@@ -206,4 +229,4 @@ def match_to_a4(corners, original_image):
     a4_image = cv2.warpPerspective(original_image, perspective_matrix, (210, 297))
 
     return a4_image
-'''
+'''cv2.approxPolyDP(curve, epsilon, closed)
